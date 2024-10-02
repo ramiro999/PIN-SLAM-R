@@ -4,6 +4,9 @@
 # Copyright (c) 2024 Yue Pan, all rights reserved
 
 import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 import matplotlib.cm as cm
 import numpy as np
@@ -506,118 +509,118 @@ class NeuralPoints(nn.Module):
         query_ts: torch.Tensor = None,
         training_mode: bool = True,
         query_locally: bool = True,
-        query_geo_feature: bool = True,
+        query_geo_feature: bool = True, 
         query_color_feature: bool = False,
     ):
-        # Add IMU-derived features
-        imu_features = self.get_imu_features(query_points, query_ts)
-
-        if query_geo_feature:
-            geo_features_vector = torch.cat([geo_features_vector, imu_features], dim=2)
-        
-        if not query_geo_feature and not query_color_feature:
-            sys.exit("you need to at least query one kind of feature")
-
-        batch_size = query_points.shape[0]
-
         geo_features_vector = None
         color_features_vector = None
 
         nn_k = self.config.query_nn_k
 
-        # T0 = get_time()
-
-        # the slow part
+        # Realiza la búsqueda de vecinos
         dists2, idx = self.radius_neighborhood_search(
             query_points, time_filtering=self.temporal_local_map_on and query_locally
         )
 
-        # [N, K], [N, K]
-        # if query globally, we do not have the time filtering
+        # Agrega prints para verificar los resultados de radius_neighborhood_search
+        print("idx shape:", idx.shape)
+        print("local_geo_features shape:", self.local_geo_features.shape)
+        print("geo_features shape:", self.geo_features.shape)
+        print("idx antes del clamp:", idx)
 
-        # T10 = get_time()
-
-        # print("K=", idx.shape[-1]) # K
-        if query_locally:
-            idx = self.global2local[
-                idx
-            ]  # [N, K] # get the local idx using the global2local mapping
-
-        nn_counts = (idx >= 0).sum(
-            dim=-1
-        )  # then it could be larger than nn_k because this is before the sorting
-
-        # T1 = get_time()
-
-        dists2[idx == -1] = 9e3  # invalid, set to large distance
-        sorted_dist2, sorted_neigh_idx = torch.sort(
-            dists2, dim=1
-        )  # sort according to distance
-        sorted_idx = idx.gather(1, sorted_neigh_idx)
-        dists2 = sorted_dist2[:, :nn_k]  # only take the knn
-        idx = sorted_idx[:, :nn_k]  # sorted local idx, only take the knn
-
-        # dist2, idx are all with the shape [N, K]
-
-        # T2 = get_time()
-
+        # `valid_mask` para vecinos válidos debe tener la forma [N, K]
         valid_mask = idx >= 0  # [N, K]
+
+        # Limitar los índices para que no excedan el tamaño de las características locales
+        idx_clamped = torch.clamp(idx, max=self.local_geo_features.shape[0] - 1)
+
+        # Prints para verificar los índices válidos y su clamping
+        print("idx_clamped shape:", idx_clamped.shape)
 
         if query_geo_feature:
             geo_features = torch.zeros(
-                batch_size,
+                query_points.shape[0],  # batch_size
                 nn_k,
                 self.geo_feature_dim,
                 device=self.device,
                 dtype=self.dtype,
             )  # [N, K, F]
+            
+            # Filtrar los índices válidos
+            valid_indices = valid_mask.nonzero(as_tuple=True)  # Obtén los índices válidos
+            
+            # Agrega prints para verificar los índices válidos
+            print("valid_indices:", valid_indices)
+            print("local_geo_features shape:", self.local_geo_features.shape)
+
+            # Aplica los índices válidos con idx_clamped
             if query_locally:
-                geo_features[valid_mask] = self.local_geo_features[idx[valid_mask]]
+                # Agrega print antes de la indexación
+                print("geo_features antes de la indexación (local):", geo_features.shape)
+                print("idx_clamped[valid_indices]:", idx_clamped[valid_indices].shape)
+                geo_features[valid_indices] = self.local_geo_features[idx_clamped[valid_indices]]
             else:
-                geo_features[valid_mask] = self.geo_features[idx[valid_mask]]
+                # Agrega print antes de la indexación
+                print("geo_features antes de la indexación (global):", geo_features.shape)
+                print("idx_clamped[valid_indices]:", idx_clamped[valid_indices].shape)
+                geo_features[valid_indices] = self.geo_features[idx_clamped[valid_indices]]
+
             if self.config.layer_norm_on:
                 geo_features = F.layer_norm(geo_features, [self.geo_feature_dim])
+
+        # Añadir las características IMU
+        imu_features = self.get_imu_features(query_points, query_ts)
+
+        # Si se solicitan características geográficas, concatenar con características IMU
+        if query_geo_feature:
+            geo_features_vector = torch.cat((geo_features, imu_features), dim=2)
+
+        # Lógica para características de color (si se solicita)
         if query_color_feature and self.color_features is not None:
             color_features = torch.zeros(
-                batch_size,
+                query_points.shape[0],  # batch_size
                 nn_k,
                 self.color_feature_dim,
                 device=self.device,
                 dtype=self.dtype,
             )  # [N, K, F]
+
+            # Filtrar los índices válidos
+            valid_indices = valid_mask.nonzero(as_tuple=True)  # Obtén los índices válidos
+
             if query_locally:
-                color_features[valid_mask] = self.local_color_features[idx[valid_mask]]
+                color_features[valid_indices] = self.local_color_features[idx_clamped[valid_indices]]
             else:
-                color_features[valid_mask] = self.color_features[idx[valid_mask]]
+                color_features[valid_indices] = self.color_features[idx_clamped[valid_indices]]
+
             if self.config.layer_norm_on:
                 color_features = F.layer_norm(color_features, [self.color_feature_dim])
 
-        N, K = valid_mask.shape  # K = nn_k here
+            color_features_vector = color_features
 
-        # print(self.local_point_certainties)
+        # Asegúrate de que las dimensiones coincidan durante la indexación
+        dists2[idx == -1] = 9e3  # invalid, set to large distance
+        sorted_dist2, sorted_neigh_idx = torch.sort(dists2, dim=1)  # sort by distance
+        sorted_idx = idx.gather(1, sorted_neigh_idx)
+        dists2 = sorted_dist2[:, :nn_k]  # only take the knn
+        idx = sorted_idx[:, :nn_k]  # sorted local idx, only take the knn
 
+        # Certainty y vector de vecinos
+        N, K = valid_mask.shape
         if query_locally:
-            certainty = self.local_point_certainties[idx]  # [N, K]
+            certainty = self.local_point_certainties[idx_clamped]  # [N, K]
             neighb_vector = (
-                query_points.view(-1, 1, 3) - self.local_neural_points[idx]
+                query_points.view(-1, 1, 3) - self.local_neural_points[idx_clamped]
             )  # [N, K, 3]
-            quat = self.local_point_orientations[idx]  # [N, K, 4]
+            quat = self.local_point_orientations[idx_clamped]  # [N, K, 4]
         else:
-            certainty = self.point_certainties[idx]  # [N, K]
+            certainty = self.point_certainties[idx_clamped]  # [N, K]
             neighb_vector = (
-                query_points.view(-1, 1, 3) - self.neural_points[idx]
+                query_points.view(-1, 1, 3) - self.neural_points[idx_clamped]
             )  # [N, K, 3]
-            quat = self.point_orientations[idx]  # [N, K, 4]
+            quat = self.point_orientations[idx_clamped]  # [N, K, 4]
 
-        # quat[...,1:] *= -1. # inverse (not needed)
-        # This has been doubly checked
-        if self.after_pgo:
-            neighb_vector = apply_quaternion_rotation(
-                quat, neighb_vector
-            )  # [N, K, 3] # passive rotation (axis rotation w.r.t point)
-        neighb_vector[~valid_mask] = torch.zeros(
-            1, 3, device=self.device, dtype=self.dtype
-        )
+        neighb_vector[~valid_mask] = torch.zeros(1, 3, device=self.device, dtype=self.dtype)
 
         if self.config.pos_encoding_band > 0:
             neighb_vector = self.position_encoder_geo(neighb_vector)  # [N, K, P]
@@ -633,58 +636,13 @@ class NeuralPoints(nn.Module):
 
         eps = 1e-15  # avoid nan (dividing by 0)
 
-        weight_vector = 1.0 / (
-            dists2 + eps
-        )  # [N, K] # Inverse distance weighting (IDW), distance square
+        weight_vector = 1.0 / (dists2 + eps)  # [N, K]
+        weight_vector[~valid_mask] = 0.0  # Zero weight for invalid points
 
-        weight_vector[~valid_mask] = 0.0  # pad for invalid voxels
-        weight_vector[
-            nn_counts == 0
-        ] = eps  # all 0 would cause NaN during normalization
-
-        # apply the normalization of weight
+        # Normalización del peso
         weight_row_sums = torch.sum(weight_vector, dim=1).unsqueeze(1)
-        weight_vector = torch.div(
-            weight_vector, weight_row_sums
-        )  # [N, K] # normalize the weight, to make the sum as 1
-
-        # print(weight_vector)
+        weight_vector = torch.div(weight_vector, weight_row_sums)  # [N, K]
         weight_vector[~valid_mask] = 0.0  # invalid has zero weight
-
-        with torch.no_grad():
-            # Certainty accumulation for each neural point according to the weight
-            # Use scatter_add_ to accumulate the values for each index
-            if training_mode:  # only do it during the training mode
-                idx[~valid_mask] = 0  # scatter_add don't accept -1 index
-                if query_locally:
-                    self.local_point_certainties.scatter_add_(
-                        dim=0, index=idx.flatten(), src=weight_vector.flatten()
-                    )
-                    if (
-                        query_ts is not None
-                    ):  # update the last update ts for each neural point
-                        idx_ts = query_ts.view(-1, 1).repeat(1, K)
-                        idx_ts[~valid_mask] = 0
-                        self.local_point_ts_update.scatter_reduce_(
-                            dim=0,
-                            index=idx.flatten(),
-                            src=idx_ts.flatten(),
-                            reduce="amax",
-                            include_self=True,
-                        )
-                        # print(self.local_point_ts_update)
-                else:
-                    self.point_certainties.scatter_add_(
-                        dim=0, index=idx.flatten(), src=weight_vector.flatten()
-                    )
-                # queried_certainty = None
-
-                certainty[~valid_mask] = 0.0
-                queried_certainty = torch.sum(certainty * weight_vector, dim=1)
-
-            else:  # inference mode
-                certainty[~valid_mask] = 0.0
-                queried_certainty = torch.sum(certainty * weight_vector, dim=1)
 
         weight_vector = weight_vector.unsqueeze(-1)  # [N, K, 1]
 
@@ -693,26 +651,14 @@ class NeuralPoints(nn.Module):
                 geo_features_vector = torch.sum(
                     geo_features_vector * weight_vector, dim=1
                 )  # [N, F+P]
-
             if query_color_feature and self.color_features is not None:
                 color_features_vector = torch.sum(
                     color_features_vector * weight_vector, dim=1
                 )  # [N, F+P]
 
-        # T3 = get_time()
+        return geo_features_vector, color_features_vector, weight_vector, nn_counts, queried_certainty
 
-        # in ms
-        # print("time for nn     :", (T1-T0) * 1e3) # ////
-        # print("time for sorting:", (T2-T1) * 1e3) # //
-        # print("time for feature:", (T3-T2) * 1e3) # ///
 
-        return (
-            geo_features_vector,
-            color_features_vector,
-            weight_vector,
-            nn_counts,
-            queried_certainty,
-        )
 
     # prune inactive uncertain neural points
     def prune_map(self, prune_certainty_thre, min_prune_count = 500, global_prune = False):
