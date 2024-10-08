@@ -141,6 +141,18 @@ class NeuralPoints(nn.Module):
         self.imu_data = []
         self.imu_timestamps = []
 
+
+        """
+        Funciones modificadas/agregadas:
+        - add_imu_measurement: Agrega una medición de IMU al buffer de datos.
+        - integrate_imu_data: Integra los datos de IMU en el estado del sensor.
+        - integrate_angular_velocity: Integra la velocidad angular en el estado del sensor.
+        - remove_gravity: Remueve la gravedad del vector de aceleración lineal.
+        - integrate_acceleration: Integra la aceleración lineal en el estado del sensor.
+        - update: Actualiza el mapa neural con una nueva observación, incluyendo datos de IMU.
+        - get_imu_features: Recupera las características de los puntos basadas en los datos de IMU.
+        """
+
     def add_imu_measurement(self, timestamp, linear_acceleration, angular_velocity, orientation, ypr=None):
         self.imu_timestamps.append(timestamp)
         self.imu_data.append(
@@ -512,6 +524,24 @@ class NeuralPoints(nn.Module):
         query_geo_feature: bool = True, 
         query_color_feature: bool = False,
     ):
+        """
+        El objetivo de esta función es recuperar las características de puntos cercanos en el mapa neural
+
+        Args:
+            query_points: Tensor de puntos de consulta.
+            query_ts: Tensor de tiempos de consulta.
+            training_mode: Si es True, se utiliza el modo de entrenamiento.
+            query_locally: Si es True, se consulta localmente.
+            query_geo_feature: Si es True, se consulta la característica geográfica.
+            query_color_feature: Si es True, se consulta la característica de color.
+
+        Returns:
+            geo_features_vector: Tensor de características geográficas.
+            color_features_vector: Tensor de características de color.
+            weight_vector: Tensor de pesos.
+            nn_counts: Tensor de conteo de vecinos.
+            queried_certainty: Tensor de certeza.
+        """
         geo_features_vector = None
         color_features_vector = None
 
