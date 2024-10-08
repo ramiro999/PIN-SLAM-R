@@ -572,10 +572,9 @@ class NeuralPoints(nn.Module):
             print("valid_indices:")
             print(valid_indices)
             print("valid_indices is a tuple with length:", len(valid_indices))
-            print("Item 0 shape:")
-            print(valid_indices[0].shape)
-            print("Item 1 shape:")
-            print(valid_indices[1].shape)
+            for i, item in enumerate(valid_indices):
+                print(f"Item {i} shape:")
+                print(item.shape)
 
             # Aplica los índices válidos con idx_clamped
             if query_locally:
@@ -585,15 +584,21 @@ class NeuralPoints(nn.Module):
                 
                 # Print shapes for debugging
                 print("geo_features shape:", geo_features.shape)
-                print("valid_indices shape:", valid_indices.shape)
+                print("valid_indices shape:", valid_indices[0].shape, valid_indices[1].shape)
                 print("idx_clamped shape:", idx_clamped.shape)
                 print("self.local_geo_features shape:", self.local_geo_features.shape)
                 
-                # Ensure idx_clamped is 1D
-                idx_clamped_flat = idx_clamped[valid_indices].flatten()
+                # Flatten idx_clamped to match the number of valid indices
+                idx_clamped_flat = idx_clamped[valid_indices[0], valid_indices[1]]
                 
-                # Use advanced indexing
-                geo_features[valid_indices] = self.local_geo_features[idx_clamped_flat]
+                # Ensure geo_features is correctly reshaped
+                geo_features_flat = geo_features.view(-1, self.geo_feature_dim)
+                
+                # Update the features
+                geo_features_flat[valid_indices[0] * nn_k + valid_indices[1]] = self.local_geo_features[idx_clamped_flat]
+                
+                # Reshape geo_features back to its original shape
+                geo_features = geo_features_flat.view(query_points.shape[0], nn_k, self.geo_feature_dim)
             else:
                 # Agrega print antes de la indexación
                 print("geo_features antes de la indexación (global):", geo_features.shape)
