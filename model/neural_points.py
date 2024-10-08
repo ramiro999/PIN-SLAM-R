@@ -532,10 +532,29 @@ class NeuralPoints(nn.Module):
         valid_mask = idx >= 0  # [N, K]
 
         # Limitar los índices para que no excedan el tamaño de las características locales
-        idx_clamped = torch.clamp(idx, max=self.local_geo_features.shape[0] - 1)
+        idx_clamped = torch.clamp(idx, 0, len(self.local_geo_features) - 1)
+
+        # Define valid_indices
+        valid_indices = idx_clamped != -1  # Assuming -1 indicates invalid indices
+
+        # Define geo_features before using it
+        geo_features = torch.zeros((valid_indices.sum(), self.local_geo_features.shape[1]), device=self.device)
+
+        # Debug prints
+        print("valid_indices shape:", valid_indices.shape)
+        print("geo_features shape:", geo_features.shape)
+        print("idx_clamped shape:", idx_clamped.shape)
+        print("self.local_geo_features shape:", self.local_geo_features.shape)
+
+        # Flatten valid_indices if it's 2D
+        flat_valid_indices = valid_indices.flatten()
+        
+        # Use flattened indices for both geo_features and idx_clamped
+        geo_features[flat_valid_indices] = self.local_geo_features[idx_clamped.flatten()[flat_valid_indices]]
 
         # Prints para verificar los índices válidos y su clamping
-        print("idx_clamped shape:", idx_clamped.shape)
+        print(f"idx_clamped min: {idx_clamped.min()}, max: {idx_clamped.max()}")
+        print(f"local_geo_features shape: {self.local_geo_features.shape}")
 
         if query_geo_feature:
             geo_features = torch.zeros(
@@ -550,15 +569,36 @@ class NeuralPoints(nn.Module):
             valid_indices = valid_mask.nonzero(as_tuple=True)  # Obtén los índices válidos
             
             # Agrega prints para verificar los índices válidos
-            print("valid_indices:", valid_indices)
-            print("local_geo_features shape:", self.local_geo_features.shape)
+            print("valid_indices:")
+            print(valid_indices)
+            print("valid_indices is a tuple with length:", len(valid_indices))
+            for i, item in enumerate(valid_indices):
+                print(f"Item {i} shape:")
+                print(item.shape)
 
             # Aplica los índices válidos con idx_clamped
             if query_locally:
                 # Agrega print antes de la indexación
                 print("geo_features antes de la indexación (local):", geo_features.shape)
                 print("idx_clamped[valid_indices]:", idx_clamped[valid_indices].shape)
-                geo_features[valid_indices] = self.local_geo_features[idx_clamped[valid_indices]]
+                
+                # Print shapes for debugging
+                print("geo_features shape:", geo_features.shape)
+                print("valid_indices shape:", valid_indices[0].shape, valid_indices[1].shape)
+                print("idx_clamped shape:", idx_clamped.shape)
+                print("self.local_geo_features shape:", self.local_geo_features.shape)
+                
+                # Flatten idx_clamped to match the number of valid indices
+                idx_clamped_flat = idx_clamped[valid_indices[0], valid_indices[1]]
+                
+                # Ensure geo_features is correctly reshaped
+                geo_features_flat = geo_features.view(-1, self.geo_feature_dim)
+                
+                # Update the features
+                geo_features_flat[valid_indices[0] * nn_k + valid_indices[1]] = self.local_geo_features[idx_clamped_flat]
+                
+                # Reshape geo_features back to its original shape
+                geo_features = geo_features_flat.view(query_points.shape[0], nn_k, self.geo_feature_dim)
             else:
                 # Agrega print antes de la indexación
                 print("geo_features antes de la indexación (global):", geo_features.shape)
