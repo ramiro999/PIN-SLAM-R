@@ -503,7 +503,7 @@ class NeuralPoints(nn.Module):
 
         # print("mean certainty for the neural points:", torch.mean(self.point_certainties))
 
-    def query_feature(
+    def query_feature(  
         self,
         query_points: torch.Tensor,
         query_ts: torch.Tensor = None,
