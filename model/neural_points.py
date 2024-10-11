@@ -4,9 +4,6 @@
 # Copyright (c) 2024 Yue Pan, all rights reserved
 
 import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 
 import matplotlib.cm as cm
 import numpy as np
@@ -138,33 +135,6 @@ class NeuralPoints(nn.Module):
 
         self.to(self.device)
 
-        self.imu_data = []
-        self.imu_timestamps = []
-
-
-        """
-        Funciones modificadas/agregadas:
-        - add_imu_measurement: Agrega una medición de IMU al buffer de datos.
-        - integrate_imu_data: Integra los datos de IMU en el estado del sensor.
-        - integrate_angular_velocity: Integra la velocidad angular en el estado del sensor.
-        - remove_gravity: Remueve la gravedad del vector de aceleración lineal.
-        - integrate_acceleration: Integra la aceleración lineal en el estado del sensor.
-        - update: Actualiza el mapa neural con una nueva observación, incluyendo datos de IMU.
-        - get_imu_features: Recupera las características de los puntos basadas en los datos de IMU.
-        """
-
-    def add_imu_measurement(self, timestamp, linear_acceleration, angular_velocity, orientation, ypr=None):
-        self.imu_timestamps.append(timestamp)
-        self.imu_data.append(
-            {
-                "linear_acceleration": linear_acceleration,
-                "angular_velocity": angular_velocity,
-                "orientation": orientation,
-                "ypr": ypr, # yaw pitch roll
-            }
-        )
-    
-    
     def is_empty(self):
         return self.neural_points.shape[0] == 0
 
@@ -316,17 +286,8 @@ class NeuralPoints(nn.Module):
         sensor_position: torch.Tensor,
         sensor_orientation: torch.Tensor,
         cur_ts,
-        imu_data=None, # se agrega imu_data como input
     ):
-        # Se incorpora los datos IMU si están presentes
-        if imu_data is not None:
-            timestamp, acceleration, angular_velocity, orientation, ypr = imu_data
-            self.add_imu_measurement(timestamp, acceleration, angular_velocity, orientation, ypr)
-
-        if len(self.imu_data) > 0:
-            sensor_position, sensor_orientation = self.integrate_imu_data(sensor_position, sensor_orientation, cur_ts)
-
-        # update the neural point map using new observation
+        # update the neural point map using new observations
 
         cur_resolution = self.resolution
         # if self.mean_grid_sampling:
@@ -515,182 +476,119 @@ class NeuralPoints(nn.Module):
 
         # print("mean certainty for the neural points:", torch.mean(self.point_certainties))
 
-    def query_feature(  
+    def query_feature(
         self,
         query_points: torch.Tensor,
         query_ts: torch.Tensor = None,
         training_mode: bool = True,
         query_locally: bool = True,
-        query_geo_feature: bool = True, 
+        query_geo_feature: bool = True,
         query_color_feature: bool = False,
     ):
-        """
-        El objetivo de esta función es recuperar las características de puntos cercanos en el mapa neural
 
-        Args:
-            query_points: Tensor de puntos de consulta.
-            query_ts: Tensor de tiempos de consulta.
-            training_mode: Si es True, se utiliza el modo de entrenamiento.
-            query_locally: Si es True, se consulta localmente.
-            query_geo_feature: Si es True, se consulta la característica geográfica.
-            query_color_feature: Si es True, se consulta la característica de color.
+        if not query_geo_feature and not query_color_feature:
+            sys.exit("you need to at least query one kind of feature")
 
-        Returns:
-            geo_features_vector: Tensor de características geográficas.
-            color_features_vector: Tensor de características de color.
-            weight_vector: Tensor de pesos.
-            nn_counts: Tensor de conteo de vecinos.
-            queried_certainty: Tensor de certeza.
-        """
+        batch_size = query_points.shape[0]
+
         geo_features_vector = None
         color_features_vector = None
 
         nn_k = self.config.query_nn_k
 
-        # Realiza la búsqueda de vecinos
+        # T0 = get_time()
+
+        # the slow part
         dists2, idx = self.radius_neighborhood_search(
             query_points, time_filtering=self.temporal_local_map_on and query_locally
         )
 
-        # Agrega prints para verificar los resultados de radius_neighborhood_search
-        print("idx shape:", idx.shape)
-        print("local_geo_features shape:", self.local_geo_features.shape)
-        print("geo_features shape:", self.geo_features.shape)
-        print("idx antes del clamp:", idx)
+        # [N, K], [N, K]
+        # if query globally, we do not have the time filtering
 
-        # `valid_mask` para vecinos válidos debe tener la forma [N, K]
+        # T10 = get_time()
+
+        # print("K=", idx.shape[-1]) # K
+        if query_locally:
+            idx = self.global2local[
+                idx
+            ]  # [N, K] # get the local idx using the global2local mapping
+
+        nn_counts = (idx >= 0).sum(
+            dim=-1
+        )  # then it could be larger than nn_k because this is before the sorting
+
+        # T1 = get_time()
+
+        dists2[idx == -1] = 9e3  # invalid, set to large distance
+        sorted_dist2, sorted_neigh_idx = torch.sort(
+            dists2, dim=1
+        )  # sort according to distance
+        sorted_idx = idx.gather(1, sorted_neigh_idx)
+        dists2 = sorted_dist2[:, :nn_k]  # only take the knn
+        idx = sorted_idx[:, :nn_k]  # sorted local idx, only take the knn
+
+        # dist2, idx are all with the shape [N, K]
+
+        # T2 = get_time()
+
         valid_mask = idx >= 0  # [N, K]
-
-        # Limitar los índices para que no excedan el tamaño de las características locales
-        idx_clamped = torch.clamp(idx, 0, len(self.local_geo_features) - 1)
-
-        # Define valid_indices
-        valid_indices = idx_clamped != -1  # Assuming -1 indicates invalid indices
-
-        # Define geo_features before using it
-        geo_features = torch.zeros((valid_indices.sum(), self.local_geo_features.shape[1]), device=self.device)
-
-        # Debug prints
-        print("valid_indices shape:", valid_indices.shape)
-        print("geo_features shape:", geo_features.shape)
-        print("idx_clamped shape:", idx_clamped.shape)
-        print("self.local_geo_features shape:", self.local_geo_features.shape)
-
-        # Flatten valid_indices if it's 2D
-        flat_valid_indices = valid_indices.flatten()
-        
-        # Use flattened indices for both geo_features and idx_clamped
-        geo_features[flat_valid_indices] = self.local_geo_features[idx_clamped.flatten()[flat_valid_indices]]
-
-        # Prints para verificar los índices válidos y su clamping
-        print(f"idx_clamped min: {idx_clamped.min()}, max: {idx_clamped.max()}")
-        print(f"local_geo_features shape: {self.local_geo_features.shape}")
 
         if query_geo_feature:
             geo_features = torch.zeros(
-                query_points.shape[0],  # batch_size
+                batch_size,
                 nn_k,
                 self.geo_feature_dim,
                 device=self.device,
                 dtype=self.dtype,
             )  # [N, K, F]
-            
-            # Filtrar los índices válidos
-            valid_indices = valid_mask.nonzero(as_tuple=True)  # Obtén los índices válidos
-            
-            # Agrega prints para verificar los índices válidos
-            print("valid_indices:")
-            print(valid_indices)
-            print("valid_indices is a tuple with length:", len(valid_indices))
-            for i, item in enumerate(valid_indices):
-                print(f"Item {i} shape:")
-                print(item.shape)
-
-            # Aplica los índices válidos con idx_clamped
             if query_locally:
-                # Agrega print antes de la indexación
-                print("geo_features antes de la indexación (local):", geo_features.shape)
-                print("idx_clamped[valid_indices]:", idx_clamped[valid_indices].shape)
-                
-                # Print shapes for debugging
-                print("geo_features shape:", geo_features.shape)
-                print("valid_indices shape:", valid_indices[0].shape, valid_indices[1].shape)
-                print("idx_clamped shape:", idx_clamped.shape)
-                print("self.local_geo_features shape:", self.local_geo_features.shape)
-                
-                # Flatten idx_clamped to match the number of valid indices
-                idx_clamped_flat = idx_clamped[valid_indices[0], valid_indices[1]]
-                
-                # Ensure geo_features is correctly reshaped
-                geo_features_flat = geo_features.view(-1, self.geo_feature_dim)
-                
-                # Update the features
-                geo_features_flat[valid_indices[0] * nn_k + valid_indices[1]] = self.local_geo_features[idx_clamped_flat]
-                
-                # Reshape geo_features back to its original shape
-                geo_features = geo_features_flat.view(query_points.shape[0], nn_k, self.geo_feature_dim)
+                geo_features[valid_mask] = self.local_geo_features[idx[valid_mask]]
             else:
-                # Agrega print antes de la indexación
-                print("geo_features antes de la indexación (global):", geo_features.shape)
-                print("idx_clamped[valid_indices]:", idx_clamped[valid_indices].shape)
-                geo_features[valid_indices] = self.geo_features[idx_clamped[valid_indices]]
-
+                geo_features[valid_mask] = self.geo_features[idx[valid_mask]]
             if self.config.layer_norm_on:
                 geo_features = F.layer_norm(geo_features, [self.geo_feature_dim])
-
-        # Añadir las características IMU
-        imu_features = self.get_imu_features(query_points, query_ts)
-
-        # Si se solicitan características geográficas, concatenar con características IMU
-        if query_geo_feature:
-            geo_features_vector = torch.cat((geo_features, imu_features), dim=2)
-
-        # Lógica para características de color (si se solicita)
         if query_color_feature and self.color_features is not None:
             color_features = torch.zeros(
-                query_points.shape[0],  # batch_size
+                batch_size,
                 nn_k,
                 self.color_feature_dim,
                 device=self.device,
                 dtype=self.dtype,
             )  # [N, K, F]
-
-            # Filtrar los índices válidos
-            valid_indices = valid_mask.nonzero(as_tuple=True)  # Obtén los índices válidos
-
             if query_locally:
-                color_features[valid_indices] = self.local_color_features[idx_clamped[valid_indices]]
+                color_features[valid_mask] = self.local_color_features[idx[valid_mask]]
             else:
-                color_features[valid_indices] = self.color_features[idx_clamped[valid_indices]]
-
+                color_features[valid_mask] = self.color_features[idx[valid_mask]]
             if self.config.layer_norm_on:
                 color_features = F.layer_norm(color_features, [self.color_feature_dim])
 
-            color_features_vector = color_features
+        N, K = valid_mask.shape  # K = nn_k here
 
-        # Asegúrate de que las dimensiones coincidan durante la indexación
-        dists2[idx == -1] = 9e3  # invalid, set to large distance
-        sorted_dist2, sorted_neigh_idx = torch.sort(dists2, dim=1)  # sort by distance
-        sorted_idx = idx.gather(1, sorted_neigh_idx)
-        dists2 = sorted_dist2[:, :nn_k]  # only take the knn
-        idx = sorted_idx[:, :nn_k]  # sorted local idx, only take the knn
+        # print(self.local_point_certainties)
 
-        # Certainty y vector de vecinos
-        N, K = valid_mask.shape
         if query_locally:
-            certainty = self.local_point_certainties[idx_clamped]  # [N, K]
+            certainty = self.local_point_certainties[idx]  # [N, K]
             neighb_vector = (
-                query_points.view(-1, 1, 3) - self.local_neural_points[idx_clamped]
+                query_points.view(-1, 1, 3) - self.local_neural_points[idx]
             )  # [N, K, 3]
-            quat = self.local_point_orientations[idx_clamped]  # [N, K, 4]
+            quat = self.local_point_orientations[idx]  # [N, K, 4]
         else:
-            certainty = self.point_certainties[idx_clamped]  # [N, K]
+            certainty = self.point_certainties[idx]  # [N, K]
             neighb_vector = (
-                query_points.view(-1, 1, 3) - self.neural_points[idx_clamped]
+                query_points.view(-1, 1, 3) - self.neural_points[idx]
             )  # [N, K, 3]
-            quat = self.point_orientations[idx_clamped]  # [N, K, 4]
+            quat = self.point_orientations[idx]  # [N, K, 4]
 
-        neighb_vector[~valid_mask] = torch.zeros(1, 3, device=self.device, dtype=self.dtype)
+        # quat[...,1:] *= -1. # inverse (not needed)
+        # This has been doubly checked
+        if self.after_pgo:
+            neighb_vector = apply_quaternion_rotation(
+                quat, neighb_vector
+            )  # [N, K, 3] # passive rotation (axis rotation w.r.t point)
+        neighb_vector[~valid_mask] = torch.zeros(
+            1, 3, device=self.device, dtype=self.dtype
+        )
 
         if self.config.pos_encoding_band > 0:
             neighb_vector = self.position_encoder_geo(neighb_vector)  # [N, K, P]
@@ -706,13 +604,58 @@ class NeuralPoints(nn.Module):
 
         eps = 1e-15  # avoid nan (dividing by 0)
 
-        weight_vector = 1.0 / (dists2 + eps)  # [N, K]
-        weight_vector[~valid_mask] = 0.0  # Zero weight for invalid points
+        weight_vector = 1.0 / (
+            dists2 + eps
+        )  # [N, K] # Inverse distance weighting (IDW), distance square
 
-        # Normalización del peso
+        weight_vector[~valid_mask] = 0.0  # pad for invalid voxels
+        weight_vector[
+            nn_counts == 0
+        ] = eps  # all 0 would cause NaN during normalization
+
+        # apply the normalization of weight
         weight_row_sums = torch.sum(weight_vector, dim=1).unsqueeze(1)
-        weight_vector = torch.div(weight_vector, weight_row_sums)  # [N, K]
+        weight_vector = torch.div(
+            weight_vector, weight_row_sums
+        )  # [N, K] # normalize the weight, to make the sum as 1
+
+        # print(weight_vector)
         weight_vector[~valid_mask] = 0.0  # invalid has zero weight
+
+        with torch.no_grad():
+            # Certainty accumulation for each neural point according to the weight
+            # Use scatter_add_ to accumulate the values for each index
+            if training_mode:  # only do it during the training mode
+                idx[~valid_mask] = 0  # scatter_add don't accept -1 index
+                if query_locally:
+                    self.local_point_certainties.scatter_add_(
+                        dim=0, index=idx.flatten(), src=weight_vector.flatten()
+                    )
+                    if (
+                        query_ts is not None
+                    ):  # update the last update ts for each neural point
+                        idx_ts = query_ts.view(-1, 1).repeat(1, K)
+                        idx_ts[~valid_mask] = 0
+                        self.local_point_ts_update.scatter_reduce_(
+                            dim=0,
+                            index=idx.flatten(),
+                            src=idx_ts.flatten(),
+                            reduce="amax",
+                            include_self=True,
+                        )
+                        # print(self.local_point_ts_update)
+                else:
+                    self.point_certainties.scatter_add_(
+                        dim=0, index=idx.flatten(), src=weight_vector.flatten()
+                    )
+                # queried_certainty = None
+
+                certainty[~valid_mask] = 0.0
+                queried_certainty = torch.sum(certainty * weight_vector, dim=1)
+
+            else:  # inference mode
+                certainty[~valid_mask] = 0.0
+                queried_certainty = torch.sum(certainty * weight_vector, dim=1)
 
         weight_vector = weight_vector.unsqueeze(-1)  # [N, K, 1]
 
@@ -721,14 +664,26 @@ class NeuralPoints(nn.Module):
                 geo_features_vector = torch.sum(
                     geo_features_vector * weight_vector, dim=1
                 )  # [N, F+P]
+
             if query_color_feature and self.color_features is not None:
                 color_features_vector = torch.sum(
                     color_features_vector * weight_vector, dim=1
                 )  # [N, F+P]
 
-        return geo_features_vector, color_features_vector, weight_vector, nn_counts, queried_certainty
+        # T3 = get_time()
 
+        # in ms
+        # print("time for nn     :", (T1-T0) * 1e3) # ////
+        # print("time for sorting:", (T2-T1) * 1e3) # //
+        # print("time for feature:", (T3-T2) * 1e3) # ///
 
+        return (
+            geo_features_vector,
+            color_features_vector,
+            weight_vector,
+            nn_counts,
+            queried_certainty,
+        )
 
     # prune inactive uncertain neural points
     def prune_map(self, prune_certainty_thre, min_prune_count = 500, global_prune = False):
@@ -1012,54 +967,6 @@ class NeuralPoints(nn.Module):
         )
 
         return o3d_bbx
-    
-    def integrate_imu_data(self, initial_position, initial_orientation, current_timestamp):
-        position = initial_position
-        orientation = initial_orientation
-
-        # Loop over all IMU data up to the current timestamp
-        for i in range(len(self.imu_timestamps)):
-            if self.imu_timestamps[i] > current_timestamp:
-                break
-            dt = self.imu_timestamps[i] - (self.imu_timestamps[i-1] if i > 0 else current_timestamp)
-            acceleration, angular_velocity = self.imu_data[i]["linear_acceleration"], self.imu_data[i]["angular_velocity"]
-
-            # Integrate angular velocity to update orientation
-            orientation = self.integrate_angular_velocity(orientation, angular_velocity, dt)
-
-            # Remove gravity from acceleration using current orientation
-            acceleration = self.remove_gravity(acceleration, orientation)
-
-            # Integrate acceleration to update position
-            position = self.integrate_acceleration(position, acceleration, dt)
-
-        return position, orientation
-    
-    def integrate_angular_velocity(self, orientation, angular_velocity, dt):
-        # Implement quaternion integration here
-        theta = angular_velocity * dt / 2.0 # Small-angle approximation
-        delta_quat = torch.tensor([1, theta[0], theta[1], theta[2]], device=self.device)
-        return quat_multiply(orientation, delta_quat)
-    
-    def remove_gravity(self, acceleration, orientation):
-        # Rotate gravity vector by inverse of orientation and subtract from acceleration
-        gravity = torch.tensor([0, 0, -9.81], device=self.device)
-        rotated_gravity = apply_quaternion_rotation(orientation, gravity)
-        return acceleration - rotated_gravity
-    
-    def integrate_acceleration(self, position, acceleration, dt):
-        # Simple double integration to update position
-        return position + 0.5 * acceleration * dt**2
-    
-    def get_imu_features(self, query_points, query_ts):
-        # Extract relevant IMU features based on query points and timestamps
-        # This is a placeholder and should be implemented based on the specific needs
-        return torch.zeros((query_points.shape[0], 6), device= self.device)
-    
-    
-
-
-
 
     # def feature_tsne(self):
     #     tsne = TSNE(n_components=3, perplexity=30, n_iter=300)
