@@ -188,6 +188,13 @@ class SLAMDataset(Dataset):
         )
 
         points, point_ts = point_cloud2.read_point_cloud(msg)
+        print("point_ts shape:", point_ts.shape)
+        print("point_ts type:", type(point_ts))
+        print("point_ts:", point_ts)
+        print("points shape:", points.shape)
+        print("points type:", type(points))
+        print("points:", points)
+        
 
         if point_ts is not None:
             min_timestamp = np.min(point_ts)

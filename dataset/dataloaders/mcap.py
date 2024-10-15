@@ -58,6 +58,7 @@ class McapDataloader:
         msg = next(self.msgs).ros_msg
         points, point_ts = self.read_point_cloud(msg)
         frame_data = {"points": points, "point_ts": point_ts}
+        
         return frame_data
 
     def __len__(self):

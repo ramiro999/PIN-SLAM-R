@@ -169,3 +169,7 @@ bak
 TODO.md
 NOTE.md
 notebook_exp
+
+# Ignore all .bag files
+comedorHighRate1.bag
+aggressive_spinning.bag
