@@ -68,7 +68,7 @@ class Tracker:
             cur_GM_dist_m = self.config.reg_GM_dist_m
         else:
             cur_GM_dist_m = None
-        if self.config.reg_GM_grad > 0:
+        if self.config.dynamic_certainty_thre > 0:
             cur_GM_grad = self.config.reg_GM_grad
         else:
             cur_GM_grad = None

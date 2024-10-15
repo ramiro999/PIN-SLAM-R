@@ -37,7 +37,7 @@ from typing import Iterable, List, Optional, Tuple
 import numpy as np
 
 try:
-    from rosbags.typesys.types import sensor_msgs__msg__PointCloud2 as PointCloud2
+    from rosbags.typesys.types import sensor_msgs__msg__PointCloud2 as PointCloud2 
     from rosbags.typesys.types import sensor_msgs__msg__PointField as PointField
 except ImportError as e:
     raise ImportError('rosbags library not installed, run "pip install -U rosbags"') from e
@@ -58,7 +58,7 @@ DUMMY_FIELD_PREFIX = "unnamed_field"
 
 def read_point_cloud(msg: PointCloud2) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Extract poitns and timestamps from a PointCloud2 message.
+    Extract points and timestamps from a PointCloud2 message.
 
     :return: Tuple of [points, timestamps]
         points: array of x, y z points, shape: (N, 3)
