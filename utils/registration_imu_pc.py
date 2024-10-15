@@ -86,6 +86,3 @@ def process_bag_file(imu_msgs, lidar_msgs):
         # Aqui puedes guardar o procesar los datos transformados
         # Por ejemplo, escribir un archivo slam
         print(f"Processed {len(transformed_point_cloud)} points with corresponding IMU data.")
-
-
-        
