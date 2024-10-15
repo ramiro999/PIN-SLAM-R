@@ -171,5 +171,7 @@ NOTE.md
 notebook_exp
 
 # Ignore all .bag files
+comedorCompleto.bag
+comedorLowRate1.bag
 comedorHighRate1.bag
 aggressive_spinning.bag

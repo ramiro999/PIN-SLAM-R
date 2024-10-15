@@ -26,9 +26,9 @@ def downsample_bag(input_bag: str, output_bag: str, original_frequency: int, new
     print(f"Downsampling completado. Archivo guardado en: {output_bag}")
 
 # Ejemplo de uso
-input_bag = "config/lidar_hesai/comedorHighRate1.bag"
+input_bag = "config/lidar_hesai/comedorCompleto.bag"
 output_bag = "config/lidar_hesai/comedorLowRate1.bag"
-original_frequency = 500 # Hz
-new_frequency = 300 # Hz
+original_frequency = 1000 # Hz
+new_frequency = 500 # Hz
 
 downsample_bag(input_bag, output_bag, original_frequency, new_frequency)
