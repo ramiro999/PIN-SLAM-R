@@ -170,6 +170,9 @@ TODO.md
 NOTE.md
 notebook_exp
 
+/config/lidar_hesai/comedorCompleto.bag
+/config/lidar_hesai/highRate1.bag
+
 # Ignore all .bag files
 comedorCompleto.bag
 comedorLowRate1.bag

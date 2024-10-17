@@ -3,6 +3,8 @@
 # @author    Yue Pan     [yue.pan@igg.uni-bonn.de]
 # Copyright (c) 2024 Yue Pan, all rights reserved
 
+# Librerias necesarias
+
 import os
 import sys
 import time
@@ -48,6 +50,7 @@ from utils.tracker import Tracker
      Y. Pan et al.
 '''
 
+# Unica clase 
 class PINSLAMer:
     def __init__(self, config_path, point_cloud_topic):
 

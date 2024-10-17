@@ -1,6 +1,6 @@
 evo==1.28.0
 gnupg==2.3.1 
-gtsam==4.2
+gtsam==4.1.0
 laspy==2.5.3
 natsort==8.1.0
 open3d==0.17.0
@@ -14,3 +14,5 @@ rospkg==1.5.1
 scikit-image==0.21.0
 wandb==0.17.0
 opencv-python
+matplotlib
+numpy
