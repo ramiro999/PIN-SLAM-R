@@ -14,6 +14,7 @@ print(bag.topic_table)
 lidar = bag.message_by_topic('/hesai/pandar')
 print(f"Datos extraídos en: {lidar}") 
 
+
 # leer los datos de la nube de puntos
 with rosbag.Bag('config/lidar_hesai/comedorCompleto.bag') as bag:
     for topic, msg, t in bag.read_messages(topics=['/hesai/pandar']):
@@ -27,6 +28,7 @@ with rosbag.Bag('config/lidar_hesai/comedorCompleto.bag') as bag:
 df = pd.DataFrame(nube_puntos, columns=['x', 'y', 'z'])
 
 print(df.head())
+print(df.describe())
 
 
 # ---- Visualización de la nube de puntos ----
