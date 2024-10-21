@@ -5,6 +5,7 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.ticker as ticker
 
 # Limitar el tamaño del archivo .csv a menos de 100 MB
 def convert_bag_to_limited_csv(bag_path, csv_path, max_size_mb):
@@ -38,6 +39,16 @@ print(df.describe())
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
+# Ajustar los limites de los ejes
+x_min, x_max = df['x'].min(), df['x'].max()
+y_min, y_max = df['y'].min(), df['y'].max()
+z_min, z_max = df['z'].min(), df['z'].max()
+
+ax.set_xlim([x_min, x_max])
+ax.set_ylim([y_min, y_max])
+ax.set_zlim([z_min, z_max])
+
+# Graficar la nube de puntos
 ax.scatter(df['x'], df['y'], df['z'], c='r', marker='o', s=1)
 ax.set_xlabel('X')
 ax.set_ylabel('Y')
@@ -157,8 +168,8 @@ print(f"Cantidad de puntos por coordenada X, Y, Z y tiempo:\n{points_per_xyz_tim
 # 1. Visualizar la cantidad de puntos por anillo
 plt.figure()
 points_per_ring.plot(kind='bar', title='Cantidad de puntos por anillo')
-plt.xlabel('Anillo')
 plt.ylabel('Cantidad de puntos')
+ax.set_xticklabels([])
 plt.show()
 
 # 2. Visualizar la cantidad de puntos por intensidad
@@ -178,6 +189,7 @@ points_per_distance.plot(kind='bar', title='Cantidad de puntos por distancia al 
 # 5. Visualizar la cantidad de puntos por coordenada X
 plt.figure()
 points_per_x.plot(kind='bar', title='Cantidad de puntos por coordenada X')
+plt.show()
 
 # 6. Visualizar la cantidad de puntos por coordenada Y
 plt.figure()
@@ -245,6 +257,7 @@ points_per_xyz_time.plot(kind='bar', title='Cantidad de puntos por coordenada X,
 
 
 # Guardar los KPIs en un archivo .csv
+"""
 kpi_path = 'config/lidar_hesai/comedorCompleto/point-cloud-kpis.csv'
 kpi_df = pd.DataFrame({
     'num_points': [num_points],
@@ -256,3 +269,4 @@ kpi_df = pd.DataFrame({
 kpi_df.to_csv(kpi_path, index=False)
 
 print("KPIs guardados en:", kpi_path)
+"""
