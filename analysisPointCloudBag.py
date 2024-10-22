@@ -52,3 +52,5 @@ plt.show()
 num_points = len(df)
 print(f"Número de puntos en la nube de puntos: {num_points}")
 
+
+
