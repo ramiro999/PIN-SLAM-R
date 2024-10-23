@@ -22,8 +22,8 @@ def convert_bag_to_limited_csv(bag_path, csv_path, max_size_mb):
                     return
 
 # Ruta del archivo .bag y .csv
-bag_path = 'config/lidar_hesai/comedorCompleto.bag'
-csv_path = 'config/lidar_hesai/comedorCompleto/point-cloud-data.csv'
+bag_path = 'output_bags/output_splt_part_1.bag'
+csv_path = 'outputs_csv/output_splt_part_1.csv'
 max_size_mb = 90
 
 """
@@ -111,60 +111,52 @@ print(f"Cantidad de puntos por coordenada Y:\n{points_per_y}")
 points_per_z = df.groupby('z').size()
 print(f"Cantidad de puntos por coordenada Z:\n{points_per_z}")
 
-# 13. Calcular la cantidad de puntos por tiempo
-points_per_time = df.groupby('time').size()
-print(f"Cantidad de puntos por tiempo:\n{points_per_time}")
-
-# 14. Calcular la cantidad de puntos por timestamp
+# 13. Calcular la cantidad de puntos por timestamp
 points_per_timestamp = df.groupby('timestamp').size()
 print(f"Cantidad de puntos por timestamp:\n{points_per_timestamp}")
 
-# 15. Calcular la cantidad de puntos por anillo y por intensidad
+# 14. Calcular la cantidad de puntos por anillo y por intensidad
 points_per_ring_intensity = df.groupby(['ring', 'intensity']).size()
 print(f"Cantidad de puntos por anillo e intensidad:\n{points_per_ring_intensity}")
 
-# 16. Calcular la cantidad de puntos por anillo y por altura
+# 15. Calcular la cantidad de puntos por anillo y por altura
 points_per_ring_height = df.groupby(['ring', 'z']).size()
 print(f"Cantidad de puntos por anillo y altura:\n{points_per_ring_height}")
 
-# 17. Calcular la cantidad de puntos por anillo y por distancia al origen
+# 16. Calcular la cantidad de puntos por anillo y por distancia al origen
 points_per_ring_distance = df.groupby(['ring', 'distance']).size()
 print(f"Cantidad de puntos por anillo y distancia al origen:\n{points_per_ring_distance}")
 
-# 18. Calcular la cantidad de puntos por intensidad y por altura
+# 17. Calcular la cantidad de puntos por intensidad y por altura
 points_per_intensity_height = df.groupby(['intensity', 'z']).size()
 print(f"Cantidad de puntos por intensidad y altura:\n{points_per_intensity_height}")
 
-# 19. Calcular la cantidad de puntos por intensidad y por distancia al origen
+# 18. Calcular la cantidad de puntos por intensidad y por distancia al origen
 points_per_intensity_distance = df.groupby(['intensity', 'distance']).size()
 print(f"Cantidad de puntos por intensidad y distancia al origen:\n{points_per_intensity_distance}")
 
-# 20. Calcular la cantidad de puntos por altura y por distancia al origen
+# 19. Calcular la cantidad de puntos por altura y por distancia al origen
 points_per_height_distance = df.groupby(['z', 'distance']).size()
 print(f"Cantidad de puntos por altura y distancia al origen:\n{points_per_height_distance}")
 
-# 21. Calcular la cantidad de puntos por anillo, intensidad y altura
+# 20. Calcular la cantidad de puntos por anillo, intensidad y altura
 points_per_ring_intensity_height = df.groupby(['ring', 'intensity', 'z']).size()
 print(f"Cantidad de puntos por anillo, intensidad y altura:\n{points_per_ring_intensity_height}")
 
-# 22. Calcular la cantidad de puntos por anillo, intensidad y distancia al origen
+# 21. Calcular la cantidad de puntos por anillo, intensidad y distancia al origen
 points_per_ring_intensity_distance = df.groupby(['ring', 'intensity', 'distance']).size()
 print(f"Cantidad de puntos por anillo, intensidad y distancia al origen:\n{points_per_ring_intensity_distance}")
 
-# 23. Calcular la cantidad de puntos por intensidad, altura y distancia al origen
+# 22. Calcular la cantidad de puntos por intensidad, altura y distancia al origen
 points_per_intensity_height_distance = df.groupby(['intensity', 'z', 'distance']).size()
 print(f"Cantidad de puntos por intensidad, altura y distancia al origen:\n{points_per_intensity_height_distance}")
 
-# 24. Calcular la cantidad de puntos por anillo, intensidad, altura y distancia al origen
+# 23. Calcular la cantidad de puntos por anillo, intensidad, altura y distancia al origen
 points_per_ring_intensity_height_distance = df.groupby(['ring', 'intensity', 'z', 'distance']).size()
 print(f"Cantidad de puntos por anillo, intensidad, altura y distancia al origen:\n{points_per_ring_intensity_height_distance}")
 
-# 25. Calcular la cantidad de puntos por coordenada X, Y y Z
+# 24. Calcular la cantidad de puntos por coordenada X, Y y Z
 points_per_xyz = df.groupby(['x', 'y', 'z']).size()
 print(f"Cantidad de puntos por coordenada X, Y y Z:\n{points_per_xyz}")
-
-# 26. Calcular la cantidad de puntos por coordenada X, Y, Z y tiempo
-points_per_xyz_time = df.groupby(['x', 'y', 'z', 'time']).size()
-print(f"Cantidad de puntos por coordenada X, Y, Z y tiempo:\n{points_per_xyz_time}")
 
 # -- Visualización de los KPIs --

@@ -4,10 +4,8 @@ import pandas as pd
 import sensor_msgs.point_cloud2 as pc2
 import rosbag
 
-
-
 # Leer el archivo .bag
-bag = bagreader('config/lidar_hesai/comedorCompleto.bag')
+bag = bagreader('output_bags/output_splt_part_1.bag')
 
 # Verficar los topicos en el archivo .bag
 print(bag.topic_table)
@@ -18,7 +16,7 @@ print(f"Datos extraídos en: {lidar}")
 
 
 # Leer los datos de la nube de puntos
-with rosbag.Bag('config/lidar_hesai/comedorCompleto.bag') as bag:
+with rosbag.Bag('output_bags/output_splt_part_1.bag') as bag:
     for topic, msg, t in bag.read_messages(topics=['/hesai/pandar']):
         nube_puntos = list(pc2.read_points(msg, field_names=("x", "y", "z", "intensity", "timestamp"), skip_nans=True))
         print(f"Topic: {topic}")
@@ -31,6 +29,9 @@ df = pd.DataFrame(nube_puntos, columns=['x', 'y', 'z', 'intensity', 'timestamp']
 
 print(df.head(100))
 print(df.describe())
+
+# Guardar los datos en un archivo .csv
+df.to_csv('outputs_csv/output_splt_part_1.csv', index=True)
 
 
 # ---- Visualización de la nube de puntos ----

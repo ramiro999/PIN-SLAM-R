@@ -6,7 +6,7 @@ import rosbag
 import matplotlib.pyplot as plt
 
 # Leer el archivo .bag
-bag = bagreader('config/lidar_hesai/comedorCompleto.bag')
+bag = bagreader('output_bags/output_splt_part_1.bag')
 
 # Verificar los tópicos disponibles
 print(bag.topic_table)
@@ -25,7 +25,7 @@ print(df.describe())
 # Quiero guardar esos datos en un archivo CSV
 
 # Leer directamente desde el .bag (opcional, para mostrar ejemplos de mensajes)
-with rosbag.Bag('config/lidar_hesai/comedorCompleto.bag', 'r') as bag:
+with rosbag.Bag('output_bags/output_splt_part_1.bag', 'r') as bag:
     for topic, msg, t in bag.read_messages(topics=['/imu/data']):
         print(f"Topic: {topic}")
         print(f"Message: {msg}")
@@ -43,7 +43,7 @@ plt.ylabel('Aceleración (m/s²)')
 plt.title('Aceleración IMU')
 plt.legend()
 plt.tight_layout()
-plt.savefig('output/aceleracion_imu.png')
+plt.savefig('output_imus/aceleracion_imu.png')
 plt.show()
 
 # Graficar los datos de velocidad angular (gx, gy, gz)
@@ -56,7 +56,7 @@ plt.ylabel('Velocidad angular (rad/s)')
 plt.title('Velocidad angular IMU')
 plt.legend()
 plt.tight_layout()
-plt.savefig('output/velocidad_angular_imu.png')
+plt.savefig('output_imus/velocidad_angular_imu.png')
 plt.show()
 
 # Graficar los datos de orientación (qx, qy, qz, qw)
@@ -70,6 +70,6 @@ plt.ylabel('Orientación')
 plt.title('Orientación IMU')
 plt.legend()
 plt.tight_layout()
-plt.savefig('output/orientacion_imu.png', dpi=300)
+plt.savefig('output_imus/orientacion_imu.png', dpi=300)
 plt.show()
 
