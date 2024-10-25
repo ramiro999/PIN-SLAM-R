@@ -188,3 +188,6 @@ imu-data.csv
 point-cloud-data.csv
 
 output_bags
+campus_small_dataset.bag
+imu_correct.csv
+analysisImu.py

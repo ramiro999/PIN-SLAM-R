@@ -6,13 +6,13 @@ import rosbag
 import matplotlib.pyplot as plt
 
 # Leer el archivo .bag
-bag = bagreader('output_bags/output_splt_part_1.bag')
+bag = bagreader('../config/lidar_hesai/campus_small_dataset.bag')
 
 # Verificar los tópicos disponibles
 print(bag.topic_table)
 
 # Extraer datos del tópico de IMU
-imu_data_path = bag.message_by_topic('/imu/data')
+imu_data_path = bag.message_by_topic('/imu_correct')
 print(f"Datos extraídos en: {imu_data_path}")
 
 # Leer los datos del archivo CSV generado por bagpy
@@ -25,8 +25,8 @@ print(df.describe())
 # Quiero guardar esos datos en un archivo CSV
 
 # Leer directamente desde el .bag (opcional, para mostrar ejemplos de mensajes)
-with rosbag.Bag('output_bags/output_splt_part_1.bag', 'r') as bag:
-    for topic, msg, t in bag.read_messages(topics=['/imu/data']):
+with rosbag.Bag('../config/lidar_hesai/campus_small_dataset.bag', 'r') as bag:
+    for topic, msg, t in bag.read_messages(topics=['/imu_correct']):
         print(f"Topic: {topic}")
         print(f"Message: {msg}")
         print(f"Time: {t}")
