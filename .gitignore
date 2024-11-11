@@ -186,6 +186,7 @@ comedorQuieto2.bag
 hesai-pandar.csv
 imu-data.csv
 point-cloud-data.csv
+lidar_hesai/
 
 output_bags
 campus_small_dataset.bag
