@@ -183,10 +183,11 @@ comedorIda.bag
 comedorVuelta.bag
 comedorQuieto.bag
 comedorQuieto2.bag
+rotativeLidar.bag
 hesai-pandar.csv
 imu-data.csv
 point-cloud-data.csv
-lidar_hesai/
+park_dataset.bag
 
 output_bags
 campus_small_dataset.bag
