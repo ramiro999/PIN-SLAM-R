@@ -71,6 +71,8 @@ ecef = CRS.from_epsg(4978) # Earth-Centered, Earth-Fixed
 # Crear transformador
 transformer = Transformer.from_crs(wgs84, ecef)
 
+#
+
 # Procesar cada conjunto sincronizado de datos 
 for data in synchorized_data:
     # Extraer los mensajes
