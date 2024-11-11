@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Sequence
 
 import natsort
-
+from utils.sensor_utils import IMUPreintegrator, EKFProcessor
 
 class RosbagDataset:
     def __init__(self, data_dir: Path, topic: str, *_, **__):
@@ -73,6 +73,10 @@ class RosbagDataset:
         self.msgs = self.bag.messages(connections=connections)
         self.timestamps = []
 
+        # Inicializar el preintegrador IMU y el procesador EKF
+        self.imu_preintegrator = IMUPreintegrator(config={})  # Debes reemplazar con tu configuración
+        self.ekf_processor = EKFProcessor(config={})  # Debes reemplazar con tu configuración
+
     def __del__(self):
         if hasattr(self, "bag"):
             self.bag.close()
@@ -85,9 +89,33 @@ class RosbagDataset:
         self.timestamps.append(self.to_sec(timestamp))
         msg = self.bag.deserialize(rawdata, connection.msgtype)
 
-        points, point_ts = self.read_point_cloud(msg)
-        frame_data = {"points": points, "point_ts": point_ts}
+        frame_data = {}
 
+        # Identificar y procesar el tipo de mensaje usando el nombre del tipo de mensaje
+        if "PointCloud2" in str(type(msg)):
+            # Leer datos de nube de puntos
+            points, point_ts = self.read_point_cloud(msg)
+            frame_data["points"] = points
+            frame_data["point_ts"] = point_ts
+
+        elif "Imu" in str(type(msg)):
+            # Procesar mensaje de tipo IMU
+            imu_data = {
+                'timestamp': self.to_sec(timestamp),
+                'orientation': [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w],
+                'angular_velocity': [msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z],
+                'linear_acceleration': [msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z]
+            }
+            frame_data["imu"] = imu_data
+
+            # Preintegrar datos IMU
+            imu_result = self.imu_preintegrator.integrate(imu_data)
+            frame_data["imu_result"] = imu_result  # Añadir el resultado de la preintegración
+
+        else:
+            raise TypeError(f"Tipo de mensaje desconocido: {type(msg)}")
+
+        # Puedes manejar más tipos de mensajes si es necesario
         return frame_data
 
     @staticmethod
@@ -118,7 +146,7 @@ class RosbagDataset:
         # when user specified the topic check that exists
         if topic and topic not in point_cloud_topics:
             print(
-                f'[ERROR] Dataset does not containg any msg with the topic name "{topic}". '
+                f'[ERROR] Dataset does not contain any msg with the topic name "{topic}". '
                 "Specify the correct topic name by python pin_slam.py path/to/config/file.yaml rosbag your/topic ... ..."
             )
             print_available_topics_and_exit()

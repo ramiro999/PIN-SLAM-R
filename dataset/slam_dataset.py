@@ -34,6 +34,8 @@ from utils.tools import (
     voxel_down_sample_torch,
 )
 
+from utils.sensor_utils import IMUPreintegrator, EKFProcessor
+
 class SLAMDataset(Dataset):
     def __init__(self, config: Config) -> None:
 
@@ -44,6 +46,10 @@ class SLAMDataset(Dataset):
         self.dtype = config.dtype
         self.device = config.device
         self.run_path = config.run_path
+
+        # Inicializar los atributos y otras variables necesarias
+        self.imu_preintegrator = IMUPreintegrator(config)
+        self.ekf_processor = EKFProcessor(config)
 
         max_frame_number: int = 100000 # about 3 hours of operation
 
@@ -229,6 +235,8 @@ class SLAMDataset(Dataset):
         points = None
         point_ts = None
         img_dict = None
+        imu_data = None
+        gnss_data = None
 
         if isinstance(frame_data, dict):
             dict_keys = list(frame_data.keys())
@@ -243,10 +251,25 @@ class SLAMDataset(Dataset):
                 cam_list = list(img_dict.keys())
                 self.cur_cam_img = {}
                 # TO ADD
-            if "imus" in dict_keys:
-                self.cur_frame_imus = frame_data["imus"]
+            if "imus" in dict_keys: # Datos del IMU
+                imu_data = frame_data["imus"]
+                self.cur_frame_imus = imu_data
+            if "gnss" in dict_keys: # Datos del GNSS
+                gnss_data = frame_data["gnss"]
          
         self.cur_point_cloud_torch = torch.tensor(points, device=self.device, dtype=self.dtype)
+
+        # Procesar los datos IMU (Preintegración)
+        if imu_data is not None:
+            self.imu_preintegrator.preintegrate(imu_data)
+
+        # Procesar los datos GNSS junto con IMU (Fusión con EKF)
+        if gnss_data is not None:
+            # Realizar fusión de IMU y GNSS con un EKF para obtener mejor estimación de la pose
+            self.ekf_processor.fuse_gnss_imu(gnss_data, self.imu_preintegrator)
+
+        if self.config.deskew:
+            self.get_point_ts(point_ts)
 
         if self.config.deskew: 
             self.get_point_ts(point_ts)
@@ -361,6 +384,14 @@ class SLAMDataset(Dataset):
         # poses related
         frame_id = self.processed_frame
         cur_pose_init_guess = self.cur_pose_ref
+
+        if hasattr(self.ekf_processor, 'current_estimated_pose'):
+            cur_pose_init_guess = self.ekf_processor.current_estimated_pose
+            if not self.silence:
+                print("Usando pose inicial a partir de la estimación del EKF")
+
+
+
         if frame_id == 0:  # initialize the first frame, no tracking yet
             if self.config.track_on:
                 self.odom_poses[frame_id] = self.cur_pose_ref
