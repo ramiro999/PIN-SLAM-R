@@ -1,5 +1,9 @@
 import csv
 from simplekml import Kml
+"""
+Este script procesa un archivo CSV con datos GPS del topico de gps del rosbag y genera un archivo KML con los puntos GPS.
+"""
+
 
 # Crear un objeto KML
 kml = Kml()
