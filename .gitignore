@@ -188,7 +188,13 @@ imu-data.csv
 point-cloud-data.csv
 lidar_hesai/
 
+
 output_bags
 campus_small_dataset.bag
 imu_correct.csv
 analysisImu.py
+
+# Ignore all lasFiles
+/rosbag_tools/outputs/outputs_las2csv/points.csv
+lasFiles/
+
