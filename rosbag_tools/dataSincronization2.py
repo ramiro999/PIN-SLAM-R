@@ -1,6 +1,6 @@
 import rosbag
 import rospy
-from sensor_msgs.msg import NavSatFix, PointCloud2
+from sensor_msgs.msg import NavSatFix, PointCloud2, Imu
 import sensor_msgs.point_cloud2 as pc2
 import numpy as np
 from pyproj import CRS, Transformer
@@ -18,6 +18,7 @@ bag_path = '../config/lidar_hesai/park_dataset.bag'
 # Tópicos del rosbag
 gps_topic = '/gps/fix'
 lidar_topic = '/points_raw'
+imu_topic = '/imu/data'  # Agregar el tópico de datos IMU
 
 # Sistemas de coordenadas
 wgs84 = CRS.from_epsg(4326)  # Coordenadas geográficas WGS84
@@ -27,20 +28,23 @@ transformer = Transformer.from_crs(wgs84, ecef, always_xy=True)
 # Ruta de salida para el nuevo archivo ROS Bag
 output_dir = 'output_georef'
 os.makedirs(output_dir, exist_ok=True)
-output_bag_path = os.path.join(output_dir, 'georeferenced_dataset.bag')
+output_bag_path = os.path.join(output_dir, 'georeferenced_dataset_with_imu.bag')
 
 # ----- Lectura del rosbag -----
 
 print("Leyendo rosbag...")
 gps_msgs = []
 lidar_msgs = []
+imu_msgs = []  # Lista para almacenar mensajes de IMU
 
 with rosbag.Bag(bag_path, 'r') as bag:
-    for topic, msg, t in bag.read_messages(topics=[gps_topic, lidar_topic]):
+    for topic, msg, t in bag.read_messages(topics=[gps_topic, lidar_topic, imu_topic]):
         if topic == gps_topic:
             gps_msgs.append((t.to_sec(), msg))
         elif topic == lidar_topic:
             lidar_msgs.append((t.to_sec(), msg))
+        elif topic == imu_topic:
+            imu_msgs.append((t.to_sec(), msg))
 
 print("Mensajes cargados.")
 
@@ -48,33 +52,33 @@ print("Mensajes cargados.")
 gps_msgs.sort(key=lambda x: x[0])
 lidar_msgs.sort(key=lambda x: x[0])
 
-# ----- Sincronización de los datos -----
+# ----- Sincronización de los datos GPS y LiDAR -----
 
-print("Sincronizando datos...")
-synchorized_data = []
+print("Sincronizando datos GPS y LiDAR...")
+synchronized_data = []
 gps_index = 0
 gps_len = len(gps_msgs)
 
 for lidar_time, lidar_msg in lidar_msgs:
-    # Encontrar el GPS más cercano en tiempo
+    # Sincronizar con el GPS más cercano en tiempo
     while gps_index < gps_len - 1 and gps_msgs[gps_index + 1][0] <= lidar_time:
         gps_index += 1
 
     gps_time, gps_msg = gps_msgs[gps_index]
-    synchorized_data.append({
+    synchronized_data.append({
         'lidar_time': lidar_time,
         'lidar_msg': lidar_msg,
         'gps_time': gps_time,
         'gps_msg': gps_msg
     })
 
-print(f"Datos sincronizados: {len(synchorized_data)} conjuntos.")
+print(f"Datos sincronizados: {len(synchronized_data)} conjuntos.")
 
-# ----- Procesamiento y creación del nuevo ROS Bag -----
+# ----- Creación del nuevo ROS Bag -----
 
 print("Creando nuevo rosbag georreferenciado...")
 with rosbag.Bag(output_bag_path, 'w') as out_bag:
-    for data in synchorized_data:
+    for data in synchronized_data:
         lidar_msg = data['lidar_msg']
         gps_msg = data['gps_msg']
 
@@ -83,11 +87,18 @@ with rosbag.Bag(output_bag_path, 'w') as out_bag:
         x0, y0, z0 = transformer.transform(lon, lat, alt)
 
         # Leer los puntos de la nube de puntos LiDAR
-        points = pc2.read_points_list(lidar_msg, field_names=('x', 'y', 'z'), skip_nans=True)
-        points_array = np.array([[p[0], p[1], p[2]] for p in points])
+        points = list(pc2.read_points(lidar_msg, skip_nans=True))  # skip_nans=True elimina puntos con NaN
 
-        # Trasladar los puntos al sistema global (ECEF)
-        global_points = points_array + np.array([x0, y0, z0])
+        # Crear una lista para los puntos globales georreferenciados
+        global_points = []
+        for point in points:
+            x, y, z = point[:3]
+            other_attributes = point[3:]  # Cualquier otro atributo adicional
+
+            # Validar que las coordenadas no sean NaN
+            if not np.isnan(x) and not np.isnan(y) and not np.isnan(z):
+                global_point = (x + x0, y + y0, z + z0) + other_attributes
+                global_points.append(global_point)
 
         # Crear un nuevo mensaje PointCloud2 con los puntos transformados
         fields = lidar_msg.fields  # Mantener los mismos campos que el original
@@ -98,4 +109,8 @@ with rosbag.Bag(output_bag_path, 'w') as out_bag:
         out_bag.write(gps_topic, gps_msg, rospy.Time.from_sec(data['gps_time']))
         out_bag.write(lidar_topic, global_lidar_msg, rospy.Time.from_sec(data['lidar_time']))
 
-print(f"Archivo rosbag georreferenciado guardado en: {output_bag_path}")
+    # Agregar los datos IMU sin modificación
+    for imu_time, imu_msg in imu_msgs:
+        out_bag.write(imu_topic, imu_msg, rospy.Time.from_sec(imu_time))
+
+print(f"Archivo rosbag georreferenciado con datos IMU guardado en: {output_bag_path}")

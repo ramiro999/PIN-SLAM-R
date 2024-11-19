@@ -199,3 +199,4 @@ analysisImu.py
 /rosbag_tools/outputs/outputs_las2csv/points.csv
 lasFiles/
 
+output_georef/
