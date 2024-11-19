@@ -4,7 +4,6 @@ from sensor_msgs.msg import NavSatFix, PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 import numpy as np
 from pyproj import CRS, Transformer
-import laspy
 import os
 
 # Ignorar warnings innecesarios
@@ -25,10 +24,10 @@ wgs84 = CRS.from_epsg(4326)  # Coordenadas geográficas WGS84
 ecef = CRS.from_epsg(4978)  # Coordenadas ECEF (Earth-Centered, Earth-Fixed)
 transformer = Transformer.from_crs(wgs84, ecef, always_xy=True)
 
-# Ruta de salida para el archivo LAS
-output_dir = 'output_gps'
+# Ruta de salida para el nuevo archivo ROS Bag
+output_dir = 'output_georef'
 os.makedirs(output_dir, exist_ok=True)
-output_path = os.path.join(output_dir, 'output.las')
+output_bag_path = os.path.join(output_dir, 'georeferenced_dataset.bag')
 
 # ----- Lectura del rosbag -----
 
@@ -71,44 +70,32 @@ for lidar_time, lidar_msg in lidar_msgs:
 
 print(f"Datos sincronizados: {len(synchorized_data)} conjuntos.")
 
-# ----- Procesamiento de los datos -----
+# ----- Procesamiento y creación del nuevo ROS Bag -----
 
-print("Procesando datos...")
-all_global_points = []
+print("Creando nuevo rosbag georreferenciado...")
+with rosbag.Bag(output_bag_path, 'w') as out_bag:
+    for data in synchorized_data:
+        lidar_msg = data['lidar_msg']
+        gps_msg = data['gps_msg']
 
-for data in synchorized_data:
-    lidar_msg = data['lidar_msg']
-    gps_msg = data['gps_msg']
+        # Convertir coordenadas GPS a ECEF
+        lon, lat, alt = gps_msg.longitude, gps_msg.latitude, gps_msg.altitude
+        x0, y0, z0 = transformer.transform(lon, lat, alt)
 
-    # Convertir coordenadas GPS a ECEF
-    lon, lat, alt = gps_msg.longitude, gps_msg.latitude, gps_msg.altitude
-    x0, y0, z0 = transformer.transform(lon, lat, alt)
+        # Leer los puntos de la nube de puntos LiDAR
+        points = pc2.read_points_list(lidar_msg, field_names=('x', 'y', 'z'), skip_nans=True)
+        points_array = np.array([[p[0], p[1], p[2]] for p in points])
 
-    # Leer los puntos de la nube de puntos LiDAR
-    points = pc2.read_points_list(lidar_msg, field_names=('x', 'y', 'z'), skip_nans=True)
-    points_array = np.array([[p[0], p[1], p[2]] for p in points])
+        # Trasladar los puntos al sistema global (ECEF)
+        global_points = points_array + np.array([x0, y0, z0])
 
-    # Trasladar los puntos al sistema global (ECEF)
-    global_points = points_array + np.array([x0, y0, z0])
-    all_global_points.append(global_points)
+        # Crear un nuevo mensaje PointCloud2 con los puntos transformados
+        fields = lidar_msg.fields  # Mantener los mismos campos que el original
+        header = lidar_msg.header  # Mantener el mismo encabezado
+        global_lidar_msg = pc2.create_cloud(header, fields, global_points)
 
-# Concatenar todos los puntos procesados
-all_global_points = np.vstack(all_global_points)
+        # Escribir los mensajes GPS y LiDAR transformados al nuevo bag
+        out_bag.write(gps_topic, gps_msg, rospy.Time.from_sec(data['gps_time']))
+        out_bag.write(lidar_topic, global_lidar_msg, rospy.Time.from_sec(data['lidar_time']))
 
-print(f"Puntos procesados: {all_global_points.shape[0]}")
-
-# ----- Almacenamiento en formato LAS -----
-
-print("Guardando archivo LAS...")
-header = laspy.LasHeader(point_format=3, version="1.2")
-las = laspy.LasData(header)
-
-# Asignar las coordenadas globales al archivo LAS
-las.x = all_global_points[:, 0]
-las.y = all_global_points[:, 1]
-las.z = all_global_points[:, 2]
-
-# Guardar el archivo
-las.write(output_path)
-
-print(f"Archivo LAS guardado en: {output_path}")
+print(f"Archivo rosbag georreferenciado guardado en: {output_bag_path}")
