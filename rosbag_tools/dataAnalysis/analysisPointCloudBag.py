@@ -5,33 +5,33 @@ import sensor_msgs.point_cloud2 as pc2
 import rosbag
 
 # Leer el archivo .bag
-bag = bagreader('output_bags/output_splt_part_1.bag')
+bag = bagreader('../output_georef/georeferenced_dataset_with_imu.bag')
 
 # Verficar los topicos en el archivo .bag
 print(bag.topic_table)
 
 # Extraer datos del tópico de la nube de puntos
-lidar = bag.message_by_topic('/hesai/pandar')
+lidar = bag.message_by_topic('/points_raw')
 print(f"Datos extraídos en: {lidar}") 
 
 
 # Leer los datos de la nube de puntos
-with rosbag.Bag('output_bags/output_splt_part_1.bag') as bag:
-    for topic, msg, t in bag.read_messages(topics=['/hesai/pandar']):
-        nube_puntos = list(pc2.read_points(msg, field_names=("x", "y", "z", "intensity", "timestamp"), skip_nans=True))
+with rosbag.Bag('../output_georef/georeferenced_dataset_with_imu.bag') as bag:
+    for topic, msg, t in bag.read_messages(topics=['/points_raw']):
+        nube_puntos = list(pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=True))
         print(f"Topic: {topic}")
         print(f"Message: {msg}")
         print(f"Time: {t}")
         break
 
 # Crear un DataFrame con los datos de la nube de puntos
-df = pd.DataFrame(nube_puntos, columns=['x', 'y', 'z', 'intensity', 'timestamp'])
+df = pd.DataFrame(nube_puntos, columns=['x', 'y', 'z'])
 
 print(df.head(100))
 print(df.describe())
 
 # Guardar los datos en un archivo .csv
-df.to_csv('outputs_csv/output_splt_part_1.csv', index=True)
+df.to_csv('../outputs/outputs_csv/output_bag.csv', index=True)
 
 
 # ---- Visualización de la nube de puntos ----

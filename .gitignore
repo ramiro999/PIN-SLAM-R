@@ -188,6 +188,11 @@ imu-data.csv
 point-cloud-data.csv
 lidar_hesai/
 
+# Ignore bag files converts
+georeferenced_dataset_with_imu.bag
+georeferenced_dataset_with_imu
+
+
 
 output_bags
 campus_small_dataset.bag
