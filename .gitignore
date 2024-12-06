@@ -188,6 +188,9 @@ hesai-pandar.csv
 imu-data.csv
 point-cloud-data.csv
 park_dataset.bag
+horizontalLidar2.bag
+rosbag_gps_synced.bag
+
 georeferenced_dataset_with_imu.bag
 GloMap.las
 output.las
@@ -198,3 +201,9 @@ output_bags
 campus_small_dataset.bag
 imu_correct.csv
 analysisImu.py
+
+# Ignore all lasFiles
+/rosbag_tools/outputs/outputs_las2csv/points.csv
+lasFiles/
+
+output_georef/
