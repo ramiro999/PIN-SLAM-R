@@ -139,6 +139,13 @@ def main():
         processor.process_rosbag()
     except Exception as e:
         rospy.logerr(f"Error procesando rosbag: {e}")
-
+python3 analysisKML.py
+/home/hover/miniconda3/lib/python3.12/site-packages/fastkml/config.py:39: UserWarning: Package `lxml` missing. Pretty print will be disabled
+  warnings.warn("Package `lxml` missing. Pretty print will be disabled")  # noqa: B028
+Traceback (most recent call last):
+  File "/home/hover/PIN-SLAM-R/rosbag_tools/analysisKML.py", line 16, in <module>
+    features = list(kml_doc.features())
+                    ^^^^^^^^^^^^^^^^^^
+TypeError: 'list' object is not callable
 if __name__ == '__main__':
     main()

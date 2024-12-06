@@ -5,7 +5,7 @@ Este script convierte un archivo .las en un archivo .kml con los puntos georrefe
 """
 
 # Ruta del archivo .las
-las_file_path = '../lasFiles/points.las'  # Cambia esta ruta al archivo .las que deseas convertir
+las_file_path = '../lasFiles/points.las' 
 kml_file_path = '../outputs/outputs_las2kml/points.kml'  # Ruta del archivo .kml de salida
 
 # Leer el archivo .las

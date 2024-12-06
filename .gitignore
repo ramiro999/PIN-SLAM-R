@@ -196,6 +196,8 @@ GloMap.las
 output.las
 points.las
 georeferenced_dataset_with_imu
+globalmap_lidar_feature.pcd
+
 
 output_bags
 campus_small_dataset.bag
