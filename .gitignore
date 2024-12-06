@@ -188,6 +188,11 @@ hesai-pandar.csv
 imu-data.csv
 point-cloud-data.csv
 park_dataset.bag
+georeferenced_dataset_with_imu.bag
+GloMap.las
+output.las
+points.las
+georeferenced_dataset_with_imu
 
 output_bags
 campus_small_dataset.bag
