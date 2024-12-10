@@ -5,7 +5,7 @@ Este script genera un archivo CSV a partir de un archivo .las georreferenciado c
 """
 
 # Load the .las file
-las_file_path = '../lasFiles/points.las'  # Update with your .las file path
+las_file_path = '../filesPCD/globalmap_lidar_feature.las'  # Update with your .las file path
 las_data = laspy.open(las_file_path).read()
 
 
@@ -20,7 +20,7 @@ points_data = {
 df = pd.DataFrame(points_data)
 
 # Save to a .csv file
-csv_file_path = '../outputs/outputs_las2csv/points.csv'  # Desired .csv output path
+csv_file_path = '../outputs/outputs_las2csv/points_globalmap_lidar_feature.csv'  # Desired .csv output path
 df.to_csv(csv_file_path, index=False)
 
 print(f"CSV file saved at: {csv_file_path}")

@@ -200,7 +200,10 @@ globalmap_lidar_feature.pcd
 georeferenced_output.pcd
 globalmap_lidar_feature.las
 output_xyz2blh.pcd
-
+output_pointcloud.kml
+merged_pointcloud.las
+result1_pointcloud.pcd
+result2_pointcloud.pcd
 
 
 output_bags
