@@ -197,6 +197,10 @@ output.las
 points.las
 georeferenced_dataset_with_imu
 globalmap_lidar_feature.pcd
+georeferenced_output.pcd
+globalmap_lidar_feature.las
+output_xyz2blh.pcd
+
 
 
 output_bags
