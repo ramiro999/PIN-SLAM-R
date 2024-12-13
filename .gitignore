@@ -210,6 +210,7 @@ output_bags
 campus_small_dataset.bag
 imu_correct.csv
 analysisImu.py
+result2_pointcloud.las
 
 # Ignore all lasFiles
 /rosbag_tools/outputs/outputs_las2csv/points.csv

@@ -205,9 +205,8 @@ class KMLParser:
 
 # Example usage
 def main():
-    # Replace 'your_file.kml' with the path to your KML file
     try:
-        kml_parser = KMLParser('./filesKML/optimized_gps_trajectry.kml')
+        kml_parser = KMLParser('../filesKML/optimized_gps_trajectry.kml')
         
         # Extract and display coordinates in different formats
         print(f"\n{Fore.CYAN}===== Coordinates (Pretty Format) ====={Fore.RESET}")

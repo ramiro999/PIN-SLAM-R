@@ -54,9 +54,9 @@ def transform_pcd_to_georeferenced(pcd_file, kml_file, output_pcd):
 
 if __name__ == "__main__":
     # Archivos de entrada y salida
-    input_pcd = "../filesPCD/globalmap_lidar_feature.pcd"
-    input_kml = "../filesKML/optimized_gps_trajectry.kml"
-    output_pcd = "../filesPCD/result1_pointcloud.pcd"
+    input_pcd = "./rosbag_tools/filesPCD/globalmap_lidar_feature.pcd"
+    input_kml = "./rosbag_tools/filesKML/optimized_gps_trajectry.kml"
+    output_pcd = "./rosbag_tools/filesPCD/result1_pointcloud.pcd"
 
     # Transformar la nube de puntos
     transform_pcd_to_georeferenced(input_pcd, input_kml, output_pcd)

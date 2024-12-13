@@ -7,8 +7,6 @@ from pyproj import Transformer
 Seguir trabajarlo
 """
 
-
-
 def read_kml_coordinates(kml_file):
     """
     Extrae las coordenadas del archivo KML.
@@ -100,9 +98,9 @@ def merge_las_and_kml(las_file, kml_file, output_file):
 # Ejemplo de uso
 if __name__ == "__main__":
     # Rutas de archivos de ejemplo
-    input_las = "../filesPCD/globalmap_lidar_feature.las"
-    input_kml = "../filesKML/optimized_gps_trajectry.kml"
-    output_las = "../filesPCD/merged_pointcloud.las"
+    input_las = "./rosbag_tools/filesPCD/globalmap_lidar_feature.las"
+    input_kml = "./rosbag_tools/filesKML/optimized_gps_trajectry.kml"
+    output_las = "./rosbag_tools/filesPCD/merged_pointcloud.las"
     
     # Fusionar .las y KML
     merge_las_and_kml(input_las, input_kml, output_las)

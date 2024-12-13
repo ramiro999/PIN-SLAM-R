@@ -128,10 +128,10 @@ def create_kml_from_pointcloud(pcd_file, output_kml):
 # Ejemplo de uso
 if __name__ == "__main__":
     # Rutas de archivos de ejemplo
-    input_pcd = "../filesPCD/globalmap_lidar_feature.pcd"
-    input_kml = "../filesKML/optimized_gps_trajectry.kml"
-    output_pcd = "../filesPCD/result2_pointcloud.pcd"
-    output_kml = "../filesKML/output_pointcloud.kml"
+    input_pcd = "./rosbag_tools/filesPCD/globalmap_lidar_feature.pcd"
+    input_kml = "./rosbag_tools/filesKML/optimized_gps_trajectry.kml"
+    output_pcd = "./rosbag_tools/filesPCD/result2_pointcloud.pcd"
+    output_kml = "./rosbag_tools/filesKML/output_pointcloud.kml"
     
     # Fusionar PCD y KML
     merge_pcd_and_kml(input_pcd, input_kml, output_pcd)
