@@ -130,7 +130,7 @@ class KMLParser:
                 style_details['line_width'] = float(width.text) if width is not None else None
             
             # Extract PolyStyle
-            poly_style = style.find('.//kml:PolyStyle', namespaces=self.namespace)
+            poly_style = style.find('.//kml:PolyStyle', globalmap_lidar_feature.lasnamespaces=self.namespace)
             if poly_style is not None:
                 color = poly_style.find('kml:color', namespaces=self.namespace)
                 style_details['poly_color'] = color.text if color is not None else None
